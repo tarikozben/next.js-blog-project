@@ -23,10 +23,19 @@ const confirmDelete = async () => {
   setIsDeleting(true);
   
   try {
+    // Token kontrolü
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Giriş yapmanız gerekli!');
+      window.location.href = '/login';
+      return;
+    }
+
     const response = await fetch('/api/blogs', {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, // ← YENİ: Token ekle
       },
       body: JSON.stringify({ id: blog.blogId }),
     });
@@ -66,18 +75,29 @@ const confirmDelete = async () => {
         </div>
       </Link>
       
-      <div className="blog-actions">
-        <Link href={`/edit/${blog.blogId}`} className="edit-btn">
-          ✏️ Düzenle
-        </Link>
-        <button 
-          onClick={handleDelete}
-          disabled={isDeleting}
-          className="delete-btn"
-        >
-          {isDeleting ? 'Siliniyor...' : '🗑️ Sil'}
-        </button>
-      </div>
+      {(() => {
+  // User bilgilerini al
+  const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+  const user = userData ? JSON.parse(userData) : null;
+  
+  // Sadece admin veya blog sahibi düzenle/sil butonlarını görebilir
+  const canEdit = user && (user.role === 'admin' || user._id === blog.authorId);
+  
+  return canEdit ? (
+    <div className="blog-actions">
+      <Link href={`/edit/${blog.blogId}`} className="edit-btn">
+        ✏️ Düzenle
+      </Link>
+      <button 
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="delete-btn"
+      >
+        {isDeleting ? 'Siliniyor...' : '🗑️ Sil'}
+      </button>
+    </div>
+  ) : null;
+})()}
             <ConfirmModal
         isOpen={showModal}
         title="Blog Sil"

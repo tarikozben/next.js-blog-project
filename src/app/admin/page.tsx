@@ -42,17 +42,24 @@ export default function AdminPage() {
     setMessage('');
 
     try {
-      const response = await fetch('/api/blogs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          id: Date.now(), // Basit ID oluşturma
-          date: new Date().toLocaleDateString()
-        }),
-      });
+      // Token'ı al
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setMessage('Giriş yapmanız gerekli!');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          return;
+        }
+
+        const response = await fetch('/api/blogs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`, // ← YENİ: Token header'a ekle
+          },
+          body: JSON.stringify(formData), // ← Sadeleştir
+        });
 
       if (response.ok) {
         setMessage('Blog başarıyla eklendi!');

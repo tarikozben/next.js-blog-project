@@ -7,6 +7,7 @@ export interface Blog {
   title: string;
   content: string;
   author: string;
+  authorId: string;
   date: string;
   createdAt: Date;
   updatedAt: Date;
@@ -19,6 +20,7 @@ export interface BlogDocument {
   title: string;
   content: string;
   author: string;
+  authorId: ObjectId; 
   date: string;
   createdAt: Date;
   updatedAt: Date;

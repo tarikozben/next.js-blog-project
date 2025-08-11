@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getDatabase } from '../../lib/mongodb';
 import { getNextBlogId } from '../../lib/counter';
 import { BlogDocument, CreateBlogData } from '../../models/Blog';
+import { verifyToken } from '../../lib/auth';
+import { ObjectId } from 'mongodb';
 
 
 // Tüm blogları getir
@@ -28,8 +30,22 @@ export async function GET() {
 }
 
 // Yeni blog ekle
+// Yeni blog ekle
 export async function POST(request: Request) {
   try {
+    // Token kontrolü
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Giriş yapmanız gerekli' }, { status: 401 });
+    }
+
+    // Token'ı doğrula ve user bilgilerini al
+    const tokenPayload = verifyToken(token);
+    if (!tokenPayload) {
+      return NextResponse.json({ error: 'Geçersiz token' }, { status: 401 });
+    }
+
     const body: CreateBlogData = await request.json();
     
     if (!body.title || !body.content || !body.author) {
@@ -37,15 +53,19 @@ export async function POST(request: Request) {
     }
 
     const db = await getDatabase();
+    
+    // Auto-increment ID al
     const blogId = await getNextBlogId();
+    
     const now = new Date();
     
     const newBlog: BlogDocument = {
-      blogId: blogId, 
+      blogId: blogId,
       title: body.title.trim(),
       content: body.content.trim(),
       author: body.author.trim(),
-      date: now.toLocaleDateString('tr-TR'), // Türkçe tarih formatı
+      authorId: new ObjectId(tokenPayload.userId), // ← YENİ: Token'dan alınan user ID
+      date: now.toLocaleDateString('tr-TR'),
       createdAt: now,
       updatedAt: now
     };
@@ -58,7 +78,8 @@ export async function POST(request: Request) {
 
     const createdBlog = {
       ...newBlog,
-      _id: result.insertedId.toString()
+      _id: result.insertedId.toString(),
+      authorId: newBlog.authorId.toString() // ObjectId'yi string'e çevir
     };
 
     console.log('Yeni blog eklendi:', createdBlog);
@@ -75,8 +96,21 @@ export async function POST(request: Request) {
 }
 
 // Blog sil
+// Blog sil
 export async function DELETE(request: Request) {
   try {
+    // Token kontrolü
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Giriş yapmanız gerekli' }, { status: 401 });
+    }
+
+    const tokenPayload = verifyToken(token);
+    if (!tokenPayload) {
+      return NextResponse.json({ error: 'Geçersiz token' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id } = body;
     
@@ -91,14 +125,27 @@ export async function DELETE(request: Request) {
     }
 
     const db = await getDatabase();
+    
+    // Blogu bul
+    const existingBlog = await db.collection<BlogDocument>('blogs').findOne({
+      blogId: blogId
+    });
+
+    if (!existingBlog) {
+      return NextResponse.json({ error: 'Blog bulunamadı' }, { status: 404 });
+    }
+
+    // Yetki kontrolü: Sadece admin veya blog sahibi silebilir
+    if (tokenPayload.role !== 'admin' && existingBlog.authorId.toString() !== tokenPayload.userId) {
+      return NextResponse.json({ error: 'Bu blogu silme yetkiniz yok' }, { status: 403 });
+    }
+
     const result = await db.collection<BlogDocument>('blogs').deleteOne({
       blogId: blogId
     });
-    
-   
 
     if (result.deletedCount === 0) {
-      return NextResponse.json({ error: 'Blog bulunamadı' }, { status: 404 });
+      return NextResponse.json({ error: 'Blog silinemedi' }, { status: 500 });
     }
 
     return NextResponse.json({ message: 'Blog başarıyla silindi' });
@@ -111,8 +158,21 @@ export async function DELETE(request: Request) {
 
 // Blog güncelle
 // Blog güncelle
+// Blog güncelle
 export async function PUT(request: Request) {
   try {
+    // Token kontrolü
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Giriş yapmanız gerekli' }, { status: 401 });
+    }
+
+    const tokenPayload = verifyToken(token);
+    if (!tokenPayload) {
+      return NextResponse.json({ error: 'Geçersiz token' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { blogId, title, content, author } = body;
     
@@ -125,6 +185,21 @@ export async function PUT(request: Request) {
     }
 
     const db = await getDatabase();
+    
+    // Blogu bul
+    const existingBlog = await db.collection<BlogDocument>('blogs').findOne({
+      blogId: parseInt(blogId)
+    });
+
+    if (!existingBlog) {
+      return NextResponse.json({ error: 'Blog bulunamadı' }, { status: 404 });
+    }
+
+    // Yetki kontrolü: Sadece admin veya blog sahibi güncelleyebilir
+    if (tokenPayload.role !== 'admin' && existingBlog.authorId.toString() !== tokenPayload.userId) {
+      return NextResponse.json({ error: 'Bu blogu düzenleme yetkiniz yok' }, { status: 403 });
+    }
+
     const result = await db.collection<BlogDocument>('blogs').updateOne(
       { blogId: parseInt(blogId) },
       { 
@@ -147,7 +222,8 @@ export async function PUT(request: Request) {
 
     const blogWithStringId = updatedBlog ? {
       ...updatedBlog,
-      _id: updatedBlog._id!.toString()
+      _id: updatedBlog._id!.toString(),
+      authorId: updatedBlog.authorId.toString()
     } : null;
 
     return NextResponse.json({ 

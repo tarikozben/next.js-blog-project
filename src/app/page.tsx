@@ -4,8 +4,8 @@ import { Blog } from './models/Blog';
 import BlogCard from './components/BlogCard';
 
 export default function Home() {
-  const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [blogs, setBlogs] = useState<Blog[]>([]); //Tüm blogları saklar
+  const [isLoading, setIsLoading] = useState(true); //loading sit
   const [error, setError] = useState<string | null>(null);
 
   const fetchBlogs = async () => {
@@ -13,7 +13,7 @@ export default function Home() {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/blogs');
+      const response = await fetch('/api/blogs'); //get isteği
       
       if (!response.ok) {
         throw new Error('Bloglar getirilemedi');

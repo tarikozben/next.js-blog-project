@@ -65,17 +65,28 @@ export default function EditPage({ params }: EditPageProps) {
     setMessage('');
 
     try {
-      const response = await fetch('/api/blogs', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-        blogId: parseInt(resolvedParams.id),
-        ...formData,
-          date: blog?.date || new Date().toLocaleDateString()
-        }),
-      });
+  // Token kontrolü
+  const token = localStorage.getItem('token');
+  if (!token) {
+    setMessage('Giriş yapmanız gerekli!');
+    setTimeout(() => {
+      window.location.href = '/login';
+    }, 2000);
+    return;
+  }
+
+  const response = await fetch('/api/blogs', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`, // ← YENİ: Token ekle
+    },
+    body: JSON.stringify({
+      blogId: resolvedParams.id,
+      ...formData,
+      date: blog?.date || new Date().toLocaleDateString()
+    }),
+  });
 
       if (response.ok) {
         setMessage('Blog başarıyla güncellendi!');

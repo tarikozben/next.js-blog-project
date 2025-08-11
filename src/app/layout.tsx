@@ -1,8 +1,12 @@
-import './globals.css'
+'use client';
+import { useEffect, useState } from 'react';
+import './globals.css';
 
-export const metadata = {
-  title: 'Teknoloji Blogu',
-  description: 'Modern web teknolojileri hakkında yazılar',
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: 'user' | 'admin';
 }
 
 export default function RootLayout({
@@ -10,6 +14,46 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Sayfa yüklendiğinde user durumunu kontrol et
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      
+      if (token && userData) {
+        setUser(JSON.parse(userData));
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    window.location.href = '/';
+  };
+
+  if (isLoading) {
+    return (
+      <html lang="tr">
+        <body>
+          <div className="loading">Yükleniyor...</div>
+        </body>
+      </html>
+    );
+  }
+
   return (
     <html lang="tr">
       <body>
@@ -23,7 +67,25 @@ export default function RootLayout({
                 <a href="/">Ana Sayfa</a>
                 <a href="/hakkimda">Hakkımda</a>
                 <a href="/iletisim">İletişim</a>
-                 <a href="/admin">Admin</a>
+                
+    {/* Her kullanıcı blog yazabilir */}
+    <a href="/create-blog" className="blog-write-btn">✍️ Blog Yaz</a>
+
+   {user ? (
+  <div className="user-menu">
+    <span className="user-greeting">Merhaba, {user.name.split(' ')[0]}!</span>
+    
+    <button onClick={handleLogout} className="logout-btn">
+      Çıkış
+    </button>
+  </div>
+) : (
+                  // Kullanıcı giriş yapmamışsa
+                  <div className="auth-menu">
+                    <a href="/login">Giriş</a>
+                    <a href="/register">Kayıt</a>
+                  </div>
+                )}
               </nav>
             </div>
           </div>
